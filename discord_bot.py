@@ -31,19 +31,25 @@ async def on_ready():
 # Reads discord messages
 @bot.event
 async def on_message(message):
-    # Ignore messages sent by the bot itself or by any other user that is not you
-    if message.author == bot.user or str(message.author.id) != MY_USER_ID:
+    # Ignore messages sent by the bot itself
+    if message.author == bot.user:
         return
 
-    # Print message content to console for debugging
-    debug(f"{message.channel}: {message.author.display_name}: {message.content}")
-
-    #Send to chatGPT
-    openai_response = ask_openai(message)
-    await message.channel.send(openai_response)
-
-    # Important: Without this line, commands won't work.
+    # Process commands first
     await bot.process_commands(message)
+
+    # Check if the message is a command (starts with the command prefix)
+    # If it is, return early to prevent further processing
+    ctx = await bot.get_context(message)
+    if ctx.valid:
+        # It's a command, so don't proceed with custom message handling
+        return
+
+    # Custom processing for non-command messages
+    if str(message.author.id) == MY_USER_ID:
+        debug(f"{message.channel}: {message.author.display_name}: {message.content}")
+        openai_response = ask_openai(message)
+        await message.channel.send(openai_response)
 
 #Discord Bot command for when !hello is used
 @bot.command()
@@ -81,6 +87,9 @@ async def respond_to_messages():
         # Wait for a random amount of time within the current delay window
         delay = random.uniform(current_min_delay, current_max_delay)
         await asyncio.sleep(delay)
+
+        while 0 <= datetime.utcnow().hour < 6:
+            await asyncio.sleep(3600)
 
         # Find the debugging channel
         # Note: Replace 'your_guild_id' with the actual ID of your server (guild)
