@@ -3,14 +3,21 @@ import random
 import discord
 
 from discord.ext import commands
-from config import DISCORD_TOKEN as TOKEN, MY_USER_ID, MY_GUILD_ID
+from config import DISCORD_TOKEN as TOKEN, MY_USER_ID, MY_GUILD_ID, BOT_USER_ID
 from config import MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY
-from openai_interface import ask_openai
+from contexts import HISTORY_COUNT, DEFAULT_CONTEXT
+from openai_interface import ask_openai, ask_openai_with_history
 from utils import debug
 from datetime import datetime, timedelta
 
 # Last message time
 last_message_time = datetime.utcnow() - timedelta(minutes=30)
+
+#List of channels to check for messages
+channel_list = {
+  #1170789197393703003: DEFAULT_CONTEXT  # Debugging channel
+  1156585342007251042: DEFAULT_CONTEXT  # General Chat
+}
 
 # Define the intents
 intents = discord.Intents.default()
@@ -46,10 +53,10 @@ async def on_message(message):
         return
 
     # Custom processing for non-command messages
-    if str(message.author.id) == MY_USER_ID:
-        debug(f"{message.channel}: {message.author.display_name}: {message.content}")
-        openai_response = ask_openai(message)
-        await message.channel.send(openai_response)
+    #if str(message.author.id) == MY_USER_ID:
+        #debug(f"{message.channel}: {message.author.display_name}: {message.content}")
+        #openai_response = ask_openai(message)
+        #await message.channel.send(openai_response)
 
 #Discord Bot command for when !hello is used
 @bot.command()
@@ -60,6 +67,12 @@ async def hello(ctx):
 @bot.command()
 async def ping(ctx):
     await ctx.send('Pong')
+    
+#discord Bot command for testing new code
+@bot.command()
+async def testing(ctx):
+    
+    await process_channels()
 
 def run_bot():    
     #Run the bot
@@ -74,6 +87,25 @@ def weighted_delay(min_delay, max_delay, time_since_last_message):
     delay = max(min_delay, min(delay, max_delay))
     return delay
 
+async def respond_to_channel(c):
+    global last_message_time
+
+    # Ensure the channel is a text channel where message history is available
+    channel = bot.get_channel(c)
+    if isinstance(channel, discord.TextChannel):
+        # Use the history() method to retrieve messages
+        messages = [message async for message in channel.history(limit=HISTORY_COUNT)]
+        if (messages[0].author.id != BOT_USER_ID):
+            last_message_time = datetime.utcnow()
+            messages.reverse()
+            openai_response = ask_openai_with_history(messages)
+            await channel.send(openai_response)
+    
+
+async def process_channels():
+    for c in channel_list:
+        await respond_to_channel(c)
+
 async def respond_to_messages():
     global last_message_time
     while True:
@@ -86,26 +118,10 @@ async def respond_to_messages():
 
         # Wait for a random amount of time within the current delay window
         delay = random.uniform(current_min_delay, current_max_delay)
+        debug("OpenAI loop delay:" + str(delay))
         await asyncio.sleep(delay)
 
         while 0 <= datetime.utcnow().hour < 6:
             await asyncio.sleep(3600)
 
-        # Find the debugging channel
-        # Note: Replace 'your_guild_id' with the actual ID of your server (guild)
-        guild = bot.get_guild(MY_GUILD_ID)
-        debugging_channel = discord.utils.get(guild.text_channels, name='debugging')
-
-        if debugging_channel:
-            # Generate a random number and send a message based on that
-            roll = random.randint(1, 6)
-            current_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
-            if roll == 6:
-                await debugging_channel.send(f"Test, sent at {current_time}. I detected a message, current delay {delay}")
-                # Update the last message time
-                last_message_time = datetime.utcnow()
-            else:
-                await debugging_channel.send(f"Test, sent at {current_time}, no new messages, sleeping, current delay {delay}")
-
-        else:
-            print("Debugging channel not found.")
+        await process_channels()
