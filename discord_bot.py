@@ -11,7 +11,7 @@ from utils import debug
 from datetime import datetime, timedelta
 
 # Last message time
-last_message_time = datetime.utcnow() - timedelta(minutes=30)
+last_message_time = datetime.utcnow()# - timedelta(minutes=30)
 
 #List of channels to check for messages
 channel_list = {

@@ -1,6 +1,6 @@
 import openai
 from config import OPENAI_TOKEN as TOKEN, BOT_USER_ID as DISCORD_ID
-from contexts import DEFAULT_CONTEXT
+from contexts import DEFAULT_CONTEXT, MODEL
 from datetime import datetime
 from utils import debug
 
@@ -20,7 +20,7 @@ def common_contexts():
 def ask_openai(message,temperature=1, max_tokens=256, top_p=1, frequency_penalty=0, presence_penalty=0, context=DEFAULT_CONTEXT):
   
   response = openai.ChatCompletion.create(
-    model="gpt-4",
+    model=MODEL,
     messages=[
         {
         "role": "system",
