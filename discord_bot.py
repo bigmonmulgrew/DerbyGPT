@@ -4,7 +4,9 @@ import discord
 
 from discord.ext import commands
 from config import DISCORD_TOKEN as TOKEN, MY_USER_ID, MY_GUILD_ID, BOT_USER_ID
-from config import MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY
+#from config import CHAT_CHANNEL
+from config import DEBUG_CHANNEL as CHAT_CHANNEL    #Comment out the above line and uncomment here to swithc to debugging channel
+from config import MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY, ATENTTION_FACTOR
 from contexts import HISTORY_COUNT, DEFAULT_CONTEXT
 from openai_interface import ask_openai, ask_openai_with_history
 from utils import debug
@@ -13,10 +15,12 @@ from datetime import datetime, timedelta
 # Last message time
 last_message_time = datetime.utcnow()# - timedelta(minutes=30)
 
+# Delay times
+delay = (300, 4) # define a default but we will set this befor efirst use anyway
+
 #List of channels to check for messages
 channel_list = {
-  #1170789197393703003: DEFAULT_CONTEXT  # Debugging channel
-  1156585342007251042: DEFAULT_CONTEXT  # General Chat
+  CHAT_CHANNEL: DEFAULT_CONTEXT  # General Chat usually
 }
 
 # Define the intents
@@ -51,6 +55,15 @@ async def on_message(message):
     if ctx.valid:
         # It's a command, so don't proceed with custom message handling
         return
+
+    # Check if the bot is mentioned in the message
+    if bot.user in message.mentions:
+        debug(f'Someone called me {bot.user}')
+        await tagged_me(message)
+    
+    # Check if the message is sent in the designated channel
+    if message.channel.id == CHAT_CHANNEL:
+        await get_attention(message)
 
     # Custom processing for non-command messages
     #if str(message.author.id) == MY_USER_ID:
@@ -87,6 +100,42 @@ def weighted_delay(min_delay, max_delay, time_since_last_message):
     delay = max(min_delay, min(delay, max_delay))
     return delay
 
+def generate_delay_steps(total_delay):
+    debug("Generate delay steps, Total delay:" + str(total_delay))
+    total_delay = round(total_delay)
+    factors = []
+    for i in range(1, int(total_delay**0.5) + 1):
+        if total_delay % i == 0:
+            factors.append(i)
+            if i != total_delay // i:
+                factors.append(total_delay // i)
+
+    debug("Generate delay steps, factors:" + str(factors))
+    factors.sort()
+
+    # Picking a factor from two-thirds the way along the list
+    index = len(factors) * 2 // 3
+    part_delay = factors[index]
+
+    # Calculating the second factor
+    iterations = total_delay // part_delay
+
+    return part_delay, iterations
+
+def update_delay(change):
+    # delay[1] iterations, #delay[0] delay per iteration.
+    global delay
+    part_delay = delay[0]
+    iterations = delay[1]
+
+    if change <= part_delay:
+        iterations -= 1
+    else:
+        iterations -= change // part_delay
+
+    delay = (part_delay, iterations) 
+    debug("Updating delay:" + str(delay))
+
 async def respond_to_channel(c):
     global last_message_time
 
@@ -98,7 +147,12 @@ async def respond_to_channel(c):
         if (messages[0].author.id != BOT_USER_ID):
             last_message_time = datetime.utcnow()
             messages.reverse()
-            openai_response = ask_openai_with_history(messages)
+
+            # Set typing indicator
+            async with channel.typing():
+                openai_response = ask_openai_with_history(messages)
+            
+            #Send the response
             await channel.send(openai_response)
     
 
@@ -108,6 +162,7 @@ async def process_channels():
 
 async def respond_to_messages():
     global last_message_time
+    global delay
     while True:
         # Calculate time since last message
         time_since_last_message = (datetime.utcnow() - last_message_time).total_seconds()
@@ -117,11 +172,41 @@ async def respond_to_messages():
         current_max_delay = weighted_delay(MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY, time_since_last_message)
 
         # Wait for a random amount of time within the current delay window
-        delay = random.uniform(current_min_delay, current_max_delay)
+        total_delay = random.uniform(current_min_delay, current_max_delay)
+        
+        delay = generate_delay_steps(total_delay)
         debug("OpenAI loop delay:" + str(delay))
-        await asyncio.sleep(delay)
+        
+        # delay[1] iterations, #delay[0] delay per iteration.
+        while delay[1] > 0:
+            await asyncio.sleep(delay[0])
+            update_delay(delay[0])
 
         while 0 <= datetime.utcnow().hour < 6:
             await asyncio.sleep(3600)
 
         await process_channels()
+
+async def tagged_me(message):
+    # Your logic when the bot is tagged
+    # For example, modifying delay or sending a response
+    # Example: print(f"I was tagged in a message by {message.author.display_name}")
+    # ... your logic here ...
+    
+    update_delay(delay[0])
+
+async def get_attention(message):
+    # When users chat it should reduce the delay time of the bot.
+    global delay
+    t = delay[0]    #time
+    i = delay[1]    #iterations
+
+    t -= ATENTTION_FACTOR
+    if t <=0:
+        t = 1
+    
+    delay = (t, i)
+    debug("Getting attenion:" + str(delay))
+
+
+    
