@@ -38,5 +38,6 @@ STATUS_LIST = [
         ("Playing", "FF14"),
         ("Playing", "Portal"),
         ("Playing", "Factorio"),
+        ("Playing", "my own VR"),
         ("Watching", "youtube")
     ]
