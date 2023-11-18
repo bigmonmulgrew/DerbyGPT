@@ -4,9 +4,10 @@ import discord
 
 from discord.ext import commands
 from config import DISCORD_TOKEN as TOKEN, MY_USER_ID, MY_GUILD_ID, BOT_USER_ID
-#from config import CHAT_CHANNEL
-from config import DEBUG_CHANNEL as CHAT_CHANNEL    #Comment out the above line and uncomment here to swithc to debugging channel
+from config import CHAT_CHANNEL
+#from config import DEBUG_CHANNEL as CHAT_CHANNEL    #Comment out the above line and uncomment here to swithc to debugging channel
 from config import MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY, ATENTTION_FACTOR
+from config import STATUS_LIST, STATUS_UPDATE_CHANCE
 from contexts import HISTORY_COUNT, DEFAULT_CONTEXT
 from openai_interface import ask_openai, ask_openai_with_history
 from utils import debug
@@ -36,6 +37,7 @@ async def on_ready():
     debug(f'We have logged in as {bot.user}')
     # Start the response loop
     bot.loop.create_task(respond_to_messages())
+    await set_status(bot)
     for guild in bot.guilds:
         debug(f"- {guild.name} (ID: {guild.id})")
 
@@ -154,7 +156,9 @@ async def respond_to_channel(c):
             
             #Send the response
             await channel.send(openai_response)
-    
+            # 10% chance to update the status
+            if random.random() < STATUS_UPDATE_CHANCE:  # random.random() generates a float between 0.0 to 1.0
+                await set_status(bot)
 
 async def process_channels():
     for c in channel_list:
@@ -184,6 +188,7 @@ async def respond_to_messages():
 
         while 0 <= datetime.utcnow().hour < 6:
             await asyncio.sleep(3600)
+            await set_status(bot)
 
         await process_channels()
 
@@ -208,5 +213,20 @@ async def get_attention(message):
     delay = (t, i)
     debug("Getting attenion:" + str(delay))
 
+async def set_status(bot):
+    # List of potential statuses
+    statuses = STATUS_LIST
 
-    
+    # Randomly choose a status
+    activity_type, name = random.choice(statuses)
+
+    # Map the string to the actual Discord activity type
+    if activity_type == "Playing":
+        activity = discord.Game(name=name)
+    elif activity_type == "Listening to":
+        activity = discord.Activity(type=discord.ActivityType.listening, name=name)
+    elif activity_type == "Watching":
+        activity = discord.Activity(type=discord.ActivityType.watching, name=name)
+
+    # Set the bot's status
+    await bot.change_presence(activity=activity)

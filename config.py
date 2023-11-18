@@ -24,3 +24,19 @@ MAX_MIN_RESPONSE_DELAY = 1 * 60 * 60
 MAX_MAX_RESPONSE_DELAY = 8 * 60 * 60
 
 ATENTTION_FACTOR = 10   # Amount to reduce the current delay by when people chat, in seconds. This is per interval so bear in mind it will in practice be several times this.
+
+STATUS_UPDATE_CHANCE = 0.25  # Probability of updating status on chat messages
+STATUS_LIST = [
+        ("Watching", "SAO"),
+        ("Watching", "Humanity"),
+        ("Watching", "Lecture recordings"),
+        ("Watching", "Humanity"),
+        ("Listening to", "Miku"),
+        ("Listening to", "Nier Soundtrack"),
+        ("Listening to", "Suspicious neighbours"),
+        ("Playing", "Dota"),
+        ("Playing", "FF14"),
+        ("Playing", "Portal"),
+        ("Playing", "Factorio"),
+        ("Watching", "youtube")
+    ]
