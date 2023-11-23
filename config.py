@@ -18,8 +18,8 @@ OPENAI_TOKEN = OT
 
 #Timing calculations to check the bots response time
 # Initial response delay in seconds (e.g., 0.5 to 5 minutes)
-MIN_RESPONSE_DELAY = 0.5 * 60  # X
-MAX_RESPONSE_DELAY = 1 * 60  # Y
+MIN_RESPONSE_DELAY = 1 * 60  # X
+MAX_RESPONSE_DELAY = 15 * 60  # Y
 
 # Maximum delay cap (e.g., 30 min to 6 hours)
 MAX_MIN_RESPONSE_DELAY = 2 * 60 * 60
