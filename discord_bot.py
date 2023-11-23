@@ -9,7 +9,7 @@ from config import CHAT_CHANNEL, SOS_CHANNEL
 #from config import DEBUG_CHANNEL as CHAT_CHANNEL    #Comment out the above line and uncomment here to switch to debugging channel
 from config import MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY, ATENTTION_FACTOR
 from config import STATUS_LIST, STATUS_UPDATE_CHANCE
-from contexts import HISTORY_COUNT, DEFAULT_CONTEXT, SOS_CONTEXT
+from contexts import HISTORY_COUNT, DEFAULT_CONTEXT, HISTORY_COUNT_SOS, SOS_CONTEXT
 from openai_interface import ask_openai, ask_openai_with_history
 from utils import debug
 from datetime import datetime, timedelta
@@ -142,31 +142,31 @@ def update_delay(change, chat_delay):
     debug("Updating delay:" + str(new_chat_delay))
     return new_chat_delay
 
-async def respond_to_channel(c):
+async def respond_to_channel(c,history_count = HISTORY_COUNT, context_string = DEFAULT_CONTEXT):
     global last_general_message_time
 
     # Ensure the channel is a text channel where message history is available
     channel = bot.get_channel(c)
     if isinstance(channel, discord.TextChannel):
         # Use the history() method to retrieve messages
-        messages = [message async for message in channel.history(limit=HISTORY_COUNT)]
+        messages = [message async for message in channel.history(limit=history_count)]
         if (messages[0].author.id != BOT_USER_ID):
             last_general_message_time = datetime.utcnow()
             messages.reverse()
 
             # Set typing indicator
             async with channel.typing():
-                openai_response = ask_openai_with_history(messages)
+                openai_response = ask_openai_with_history(messages, context = context_string)
             
             #Send the response
             await channel.send(openai_response)
-            # 10% chance to update the status
+            # % chance to update the status
             if random.random() < STATUS_UPDATE_CHANCE:  # random.random() generates a float between 0.0 to 1.0
                 await set_status(bot)
 
 async def process_channels():
-    for c in channel_list:
-        await respond_to_channel(c)
+    for channel,context_data in channel_list.items():
+        await respond_to_channel(channel, context_string=context_data)
 
 async def respond_to_general_chat():
     global last_general_message_time
@@ -215,7 +215,7 @@ async def respond_to_sos_chat():
             await asyncio.sleep(sos_chat_delay[0])
             sos_chat_delay = update_delay(sos_chat_delay[0], sos_chat_delay)
 
-        await process_channels()
+        await respond_to_channel(SOS_CHANNEL, history_count = HISTORY_COUNT_SOS, context_string = SOS_CONTEXT)
 
 
 async def tagged_me(message):
