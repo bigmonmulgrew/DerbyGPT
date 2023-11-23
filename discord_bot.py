@@ -3,23 +3,27 @@ import random
 import discord
 
 from discord.ext import commands
+#splitting imports from config into groups for for reasability
 from config import DISCORD_TOKEN as TOKEN, MY_USER_ID, MY_GUILD_ID, BOT_USER_ID
-from config import CHAT_CHANNEL
+from config import CHAT_CHANNEL, SOS_CHANNEL
 #from config import DEBUG_CHANNEL as CHAT_CHANNEL    #Comment out the above line and uncomment here to switch to debugging channel
 from config import MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY, ATENTTION_FACTOR
 from config import STATUS_LIST, STATUS_UPDATE_CHANCE
-from contexts import HISTORY_COUNT, DEFAULT_CONTEXT
+from contexts import HISTORY_COUNT, DEFAULT_CONTEXT, SOS_CONTEXT
 from openai_interface import ask_openai, ask_openai_with_history
 from utils import debug
 from datetime import datetime, timedelta
 
 # Last message time
-last_message_time = datetime.utcnow()# - timedelta(minutes=30)
+last_general_message_time = datetime.utcnow()# - timedelta(minutes=30)
+last_sos_message_time = datetime.utcnow()# - timedelta(minutes=30)
 
 # Delay times
 gen_chat_delay = (300, 4) # define a default but we will set this befor efirst use anyway
+sos_chat_delay = (300, 3) # define a sos channel delay, we set this later, this is just a reasonable default/
 
 #List of channels to check for messages
+#These are checked on the delayed loop rather than real time.
 channel_list = {
   CHAT_CHANNEL: DEFAULT_CONTEXT  # General Chat usually
 }
@@ -36,7 +40,8 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 async def on_ready():
     debug(f'We have logged in as {bot.user}')
     # Start the response loop
-    bot.loop.create_task(respond_to_messages())
+    bot.loop.create_task(respond_to_general_chat())     #Creat the loop that monitors general chat.
+    bot.loop.create_task(respond_to_sos_chat())         #Creat the loop that monitors sos chat.
     await set_status(bot)
     for guild in bot.guilds:
         debug(f"- {guild.name} (ID: {guild.id})")
@@ -124,22 +129,21 @@ def generate_delay_steps(total_delay):
 
     return part_delay, iterations
 
-def update_delay(change):
-    # delay[1] iterations, #delay[0] delay per iteration.
-    global gen_chat_delay
-    part_delay = gen_chat_delay[0]
-    iterations = gen_chat_delay[1]
+def update_delay(change, chat_delay):
+    part_delay = chat_delay[0]
+    iterations = chat_delay[1]
 
     if change <= part_delay:
         iterations -= 1
     else:
         iterations -= change // part_delay
 
-    gen_chat_delay = (part_delay, iterations) 
-    debug("Updating delay:" + str(gen_chat_delay))
+    new_chat_delay = (part_delay, iterations)
+    debug("Updating delay:" + str(new_chat_delay))
+    return new_chat_delay
 
 async def respond_to_channel(c):
-    global last_message_time
+    global last_general_message_time
 
     # Ensure the channel is a text channel where message history is available
     channel = bot.get_channel(c)
@@ -147,7 +151,7 @@ async def respond_to_channel(c):
         # Use the history() method to retrieve messages
         messages = [message async for message in channel.history(limit=HISTORY_COUNT)]
         if (messages[0].author.id != BOT_USER_ID):
-            last_message_time = datetime.utcnow()
+            last_general_message_time = datetime.utcnow()
             messages.reverse()
 
             # Set typing indicator
@@ -164,12 +168,12 @@ async def process_channels():
     for c in channel_list:
         await respond_to_channel(c)
 
-async def respond_to_messages():
-    global last_message_time
+async def respond_to_general_chat():
+    global last_general_message_time
     global gen_chat_delay
     while True:
         # Calculate time since last message
-        time_since_last_message = (datetime.utcnow() - last_message_time).total_seconds()
+        time_since_last_message = (datetime.utcnow() - last_general_message_time).total_seconds()
 
         # Determine the current delay based on the time since the last message
         current_min_delay = weighted_delay(MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, time_since_last_message)
@@ -184,7 +188,7 @@ async def respond_to_messages():
         # delay[1] iterations, #delay[0] delay per iteration.
         while gen_chat_delay[1] > 0:
             await asyncio.sleep(gen_chat_delay[0])
-            update_delay(gen_chat_delay[0])
+            gen_chat_delay = update_delay(gen_chat_delay[0], gen_chat_delay)
 
         while 0 <= datetime.utcnow().hour < 6:
             await asyncio.sleep(3600)
@@ -192,13 +196,34 @@ async def respond_to_messages():
 
         await process_channels()
 
+async def respond_to_sos_chat():
+    global last_sos_message_time
+    global sos_chat_delay
+    while True:
+        # Calculate time since last message
+        time_since_last_message = (datetime.utcnow() - last_general_message_time).total_seconds()
+
+        #Use the standard response delay for this because it shouldnt get slower when idle 
+        # Wait for a random amount of time within the current delay window
+        total_delay = random.uniform(MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY)
+        
+        sos_chat_delay = generate_delay_steps(total_delay)
+        debug("OpenAI loop delay:" + str(sos_chat_delay))
+        
+        # delay[1] iterations, #delay[0] delay per iteration.
+        while sos_chat_delay[1] > 0:
+            await asyncio.sleep(sos_chat_delay[0])
+            sos_chat_delay = update_delay(sos_chat_delay[0], sos_chat_delay)
+
+        await process_channels()
+
+
 async def tagged_me(message):
-    # Your logic when the bot is tagged
+    # Reduces the chat delay when theb bot is tagged
     # For example, modifying delay or sending a response
     # Example: print(f"I was tagged in a message by {message.author.display_name}")
-    # ... your logic here ...
-    
-    update_delay(gen_chat_delay[0])
+    global gen_chat_delay
+    gen_chat_delay = update_delay(gen_chat_delay[0], gen_chat_delay)
 
 async def get_attention(message):
     # When users chat it should reduce the delay time of the bot.
