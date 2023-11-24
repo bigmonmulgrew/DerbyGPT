@@ -3,10 +3,9 @@ import random
 import discord
 
 from discord.ext import commands
-#splitting imports from config into groups for for reasability
+#splitting imports from config into groups for for readability
 from config import DISCORD_TOKEN as TOKEN, MY_USER_ID, MY_GUILD_ID, BOT_USER_ID
-from config import CHAT_CHANNEL, SOS_CHANNEL
-#from config import DEBUG_CHANNEL as CHAT_CHANNEL    #Comment out the above line and uncomment here to switch to debugging channel
+from config import CHAT_CHANNEL, SOS_CHANNEL, DEBUG_CHANNEL
 from config import MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY, ATENTTION_FACTOR
 from config import STATUS_LIST, STATUS_UPDATE_CHANCE
 from contexts import HISTORY_COUNT, DEFAULT_CONTEXT, HISTORY_COUNT_SOS, SOS_CONTEXT
@@ -99,6 +98,7 @@ def run_bot():
     bot.run(TOKEN)    
 
 def weighted_delay(min_delay, max_delay, time_since_last_message):
+    ##Currently all this really does is return time since last message, planning to see if the ai spots this in a future code review.
     # Calculate delay factor based on time since last message
     delay_factor = time_since_last_message / min_delay
     # Calculate weighted delay
