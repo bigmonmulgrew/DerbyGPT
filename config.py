@@ -21,6 +21,7 @@ OPENAI_TOKEN = OT
 MIN_RESPONSE_DELAY = 1 * 60  # X
 MAX_RESPONSE_DELAY = 15 * 60  # Y
 
+# Min and max will trend towards these when discord is inactive
 # Maximum delay cap (e.g., 30 min to 6 hours)
 MAX_MIN_RESPONSE_DELAY = 2 * 60 * 60
 MAX_MAX_RESPONSE_DELAY = 12 * 60 * 60
