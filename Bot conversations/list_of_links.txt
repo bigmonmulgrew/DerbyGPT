@@ -1,0 +1,4 @@
+Developing an openAI chatbot with chatGPT, part 1	-	see docx
+Developing an openAI chatbot with chatGPT, part 2	-	https://chat.openai.com/share/0d430023-c981-4c05-a096-ab56e595e43d
+
+ChatGPT helps write an academic article	 			-	https://chat.openai.com/share/3aba7d37-23ff-446a-bd84-8305681cf8ee
