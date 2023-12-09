@@ -53,6 +53,30 @@ def add_system_context(ai_messages, context):
         }
     )
 
+def format_user_message(user_message_block, images):
+    # Initialize the message content with the user's text
+    message_content = [{"type": "text", "text": user_message_block}]
+
+    # If there are images, add them to the message content
+    if images:
+        for image_url in images:
+            message_content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": image_url,
+                },
+            })
+
+    # Return the formatted message object
+    return {"role": "user", "content": message_content}
+
+def get_images_from_message(m,images):
+  for attachment in m.attachments:
+    # Check if the attachment is an image (by content type or file extension)
+    if any(attachment.filename.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
+      # Get the image URL and append to the provided list
+      images.append(attachment.url)
+
 def add_message_block(ai_messages, messages):
   """
   Takes in a list of one or more messages from discord and appends them to the ai_messages list
@@ -62,16 +86,22 @@ def add_message_block(ai_messages, messages):
   # Initialize variables to keep track of the concatenated user messages
   user_message_block = ""
   last_author = None
+  include_images = []
 
   for m in messages:
+    
+
     if m.author.display_name != last_author:
       # If the author has changed, start a new block
-      if user_message_block:  # Add a newline if not the first message in the block
-        user_message_block += f"\n\n"
-      user_message_block += f"{m.author.display_name}:\n"
+      ai_messages.append(format_user_message(user_message_block, include_images))
+      user_message_block = f"{m.author.display_name}:\n"  # Create a new user message block starting with this users name
+      include_images = [] # Reset the image list to empty
     else:
       # Add a newline before adding the next message in the same block
       user_message_block += f"\n"
+
+    #Check if this message contains images
+    get_images_from_message(m, include_images)
 
     # Concatenate the current message
     user_message_block += m.content
@@ -79,7 +109,7 @@ def add_message_block(ai_messages, messages):
     # Update the last author
     last_author = m.author.display_name
   
-  ai_messages.append({"role": "user", "content": user_message_block})
+  ai_messages.append(format_user_message(user_message_block, include_images))
 
 def convert_discord_to_context(messages, context):
     ai_messages = []
@@ -122,7 +152,7 @@ def ask_openai_with_history(messages,temperature=1, max_tokens=256, top_p=1, fre
     print(message)
 
   response = openai.ChatCompletion.create(
-    model="gpt-4",
+    model=MODEL,
     messages=ai_messages,
     temperature=temperature,
     max_tokens=max_tokens,
