@@ -12,9 +12,11 @@ def common_contexts():
   current_time = datetime.now()
   # Format the time to HH:MM
   formatted_time = current_time.strftime('%H:%M')
+  formatted_date = current_time.strftime('%A %d %b %Y')
 
-  common = "\ncurrent time: " +  formatted_time
-  common += "\nmessages starting with ! or \ should be ignored"
+  common = f"\ncurrent date: " +  formatted_date
+  common += f"\ncurrent time: " +  formatted_time
+  common += f"\nmessages starting with ! or \ should be ignored"
   return common
 
 def ask_openai(message,temperature=1, max_tokens=256, top_p=1, frequency_penalty=0, presence_penalty=0, context=DEFAULT_CONTEXT):
@@ -42,47 +44,68 @@ def ask_openai(message,temperature=1, max_tokens=256, top_p=1, frequency_penalty
   gpt_response_content = response['choices'][0]['message']['content']
   return gpt_response_content
 
-def convert_discord_to_context(messages, context):
-    ai_messages = []
-    ai_messages.append(
+def add_system_context(ai_messages, context):
+  """Appends the default system message and context to the given list of ai messages"""
+  ai_messages.append(
         {
             "role": "system",
             "content": context + common_contexts()
         }
     )
 
-    # Initialize variables to keep track of the concatenated user messages
-    user_message_block = ""
-    last_author = None
+def add_message_block(ai_messages, messages):
+  """
+  Takes in a list of one or more messages from discord and appends them to the ai_messages list
+  Includes extraction and formatting of images to the context
+  All discord messages passed here will be converted to a single ai message which containt usernames and message content.
+  """
+  # Initialize variables to keep track of the concatenated user messages
+  user_message_block = ""
+  last_author = None
 
+  for m in messages:
+    if m.author.display_name != last_author:
+      # If the author has changed, start a new block
+      if user_message_block:  # Add a newline if not the first message in the block
+        user_message_block += f"\n\n"
+      user_message_block += f"{m.author.display_name}:\n"
+    else:
+      # Add a newline before adding the next message in the same block
+      user_message_block += f"\n"
+
+    # Concatenate the current message
+    user_message_block += m.content
+
+    # Update the last author
+    last_author = m.author.display_name
+  
+  ai_messages.append({"role": "user", "content": user_message_block})
+
+def convert_discord_to_context(messages, context):
+    ai_messages = []
+   
+    add_system_context(ai_messages, context)
+
+    # Create a list to hold each block of user messages, blocks are broken up by ai messages
+    user_message_block = []
+
+    # Group messages into a block of user messages
     for m in messages:
-        if DISCORD_ID == m.author.id:  # Message from the bot (assistant)
-            if user_message_block:  # If there's a pending user message block, add it first
-                ai_messages.append({"role": "user", "content": user_message_block})
-                user_message_block = ""  # Reset the user message block
+      if DISCORD_ID != m.author.id:   # Message is from a user and not the bot
+        user_message_block.append(m)  # Create a list of consecutive user messages
 
-            # Add the bot's (assistant's) message
-            ai_messages.append({"role": "assistant", "content": f"{m.content}"})
+      else:                           # Message is from the bot (assistant)
+        if len(user_message_block) > 0:  # If there's a pending user message block, add it first
+          add_message_block(ai_messages, user_message_block)  # Convert the messages into a single ai user message
+          user_message_block = []         # Reset the list to empty once it has been appended
+        
+        # Add the bot's (assistant's) message
+        ai_messages.append({"role": "assistant", "content": f"{m.content}"})
 
-        else:  # Message from a user
-            if m.author.display_name != last_author:
-                # If the author has changed, start a new block
-                if user_message_block:  # Add a newline if not the first message in the block
-                    user_message_block += "\n\n"
-                user_message_block += f"{m.author.display_name}:\n"
-            else:
-                # Add a newline before adding the next message in the same block
-                user_message_block += "\n"
+    if len(user_message_block) > 0: # Check if theres still a user message to add after the loop
+      add_message_block(ai_messages, user_message_block)
 
-            # Concatenate the current message
-            user_message_block += m.content
-
-            # Update the last author
-            last_author = m.author.display_name
-
-    # Add any remaining user message block after the loop
-    if user_message_block:
-        ai_messages.append({"role": "user", "content": user_message_block})
+    
 
     debug("Converted Discord messages to OpenAI context:\n" + str(ai_messages))
     return ai_messages

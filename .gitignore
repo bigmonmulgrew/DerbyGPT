@@ -155,3 +155,6 @@ tokens.py
 # Ignore Microsoft Word temporary files
 ~$*
 *.tmp
+
+# Ignore downloads folder
+downloads/

@@ -1,6 +1,7 @@
 import asyncio
 import random
 import discord
+import os
 
 from discord.ext import commands
 #splitting imports from config into groups for for readability
@@ -70,6 +71,10 @@ async def on_message(message):
     # Check if the message is sent in the designated channel
     if message.channel.id == CHAT_CHANNEL:
         await get_attention(message)
+
+    # Check if the message is sent in the debug channel
+    if message.channel.id == DEBUG_CHANNEL:
+        await debug_test()
 
     # Custom processing for non-command messages
     #if str(message.author.id) == MY_USER_ID:
@@ -153,7 +158,7 @@ async def respond_to_channel(c,history_count = HISTORY_COUNT, context_string = D
         if (messages[0].author.id != BOT_USER_ID):
             last_general_message_time = datetime.utcnow()
             messages.reverse()
-
+            
             # Set typing indicator
             async with channel.typing():
                 openai_response = ask_openai_with_history(messages, context = context_string)
@@ -255,3 +260,7 @@ async def set_status(bot):
 
     # Set the bot's status
     await bot.change_presence(activity=activity)
+
+async def debug_test():
+    await respond_to_channel(DEBUG_CHANNEL, history_count = 4, context_string = DEFAULT_CONTEXT)
+    
