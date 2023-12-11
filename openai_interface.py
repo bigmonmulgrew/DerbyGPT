@@ -21,7 +21,7 @@ def common_contexts():
 
 def ask_openai(message,temperature=1, max_tokens=256, top_p=1, frequency_penalty=0, presence_penalty=0, context=DEFAULT_CONTEXT):
   
-  response = openai.ChatCompletion.create(
+  response = openai.chat.completions.create(
     model=MODEL,
     messages=[
         {
@@ -41,7 +41,7 @@ def ask_openai(message,temperature=1, max_tokens=256, top_p=1, frequency_penalty
     )
   
   # Extract the 'content' from the response
-  gpt_response_content = response['choices'][0]['message']['content']
+  gpt_response_content = response.choices[0].message.content
   return gpt_response_content
 
 def add_system_context(ai_messages, context):
@@ -151,7 +151,7 @@ def ask_openai_with_history(messages,temperature=1, max_tokens=256, top_p=1, fre
   for message in ai_messages:
     print(message)
 
-  response = openai.ChatCompletion.create(
+  response = openai.chat.completions.create(
     model=MODEL,
     messages=ai_messages,
     temperature=temperature,
@@ -162,5 +162,5 @@ def ask_openai_with_history(messages,temperature=1, max_tokens=256, top_p=1, fre
     )
   
   # Extract the 'content' from the response
-  gpt_response_content = response['choices'][0]['message']['content']
+  gpt_response_content = response.choices[0].message.content
   return gpt_response_content
