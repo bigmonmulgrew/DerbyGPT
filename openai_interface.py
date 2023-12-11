@@ -1,6 +1,6 @@
 import openai
 from config import OPENAI_TOKEN as TOKEN, BOT_USER_ID as DISCORD_ID
-from contexts import DEFAULT_CONTEXT, MODEL
+from contexts import DEFAULT_CONTEXT, MODEL, MODEL_IMAGE, MAX_TOKENS
 from datetime import datetime
 from utils import debug
 
@@ -21,7 +21,7 @@ def common_contexts():
 
 def ask_openai(message,temperature=1, max_tokens=256, top_p=1, frequency_penalty=0, presence_penalty=0, context=DEFAULT_CONTEXT):
   
-  response = openai.ChatCompletion.create(
+  response = openai.chat.completions.create(
     model=MODEL,
     messages=[
         {
@@ -41,7 +41,7 @@ def ask_openai(message,temperature=1, max_tokens=256, top_p=1, frequency_penalty
     )
   
   # Extract the 'content' from the response
-  gpt_response_content = response['choices'][0]['message']['content']
+  gpt_response_content = response.choices[0].message.content
   return gpt_response_content
 
 def add_system_context(ai_messages, context):
@@ -71,11 +71,14 @@ def format_user_message(user_message_block, images):
     return {"role": "user", "content": message_content}
 
 def get_images_from_message(m,images):
+  found_image = False
   for attachment in m.attachments:
     # Check if the attachment is an image (by content type or file extension)
     if any(attachment.filename.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
       # Get the image URL and append to the provided list
       images.append(attachment.url)
+      found_image = True
+  return found_image
 
 def add_message_block(ai_messages, messages):
   """
@@ -87,6 +90,7 @@ def add_message_block(ai_messages, messages):
   user_message_block = ""
   last_author = None
   include_images = []
+  found_image = False
 
   for m in messages:
     
@@ -101,7 +105,7 @@ def add_message_block(ai_messages, messages):
       user_message_block += f"\n"
 
     #Check if this message contains images
-    get_images_from_message(m, include_images)
+    found_image = get_images_from_message(m, include_images) or found_image
 
     # Concatenate the current message
     user_message_block += m.content
@@ -111,9 +115,11 @@ def add_message_block(ai_messages, messages):
   
   ai_messages.append(format_user_message(user_message_block, include_images))
 
+  return found_image
+
 def convert_discord_to_context(messages, context):
     ai_messages = []
-   
+    image_api = False
     add_system_context(ai_messages, context)
 
     # Create a list to hold each block of user messages, blocks are broken up by ai messages
@@ -126,33 +132,32 @@ def convert_discord_to_context(messages, context):
 
       else:                           # Message is from the bot (assistant)
         if len(user_message_block) > 0:  # If there's a pending user message block, add it first
-          add_message_block(ai_messages, user_message_block)  # Convert the messages into a single ai user message
+          image_api = add_message_block(ai_messages, user_message_block) or image_api  # Convert the messages into a single ai user message
           user_message_block = []         # Reset the list to empty once it has been appended
         
         # Add the bot's (assistant's) message
         ai_messages.append({"role": "assistant", "content": f"{m.content}"})
 
     if len(user_message_block) > 0: # Check if theres still a user message to add after the loop
-      add_message_block(ai_messages, user_message_block)
-
-    
+      image_api = add_message_block(ai_messages, user_message_block) or image_api
 
     debug("Converted Discord messages to OpenAI context:\n" + str(ai_messages))
-    return ai_messages
+    return (ai_messages, image_api)
 
 
-def ask_openai_with_history(messages,temperature=1, max_tokens=256, top_p=1, frequency_penalty=0, presence_penalty=0, context=DEFAULT_CONTEXT):
+def ask_openai_with_history(messages,temperature=1, max_tokens=MAX_TOKENS, top_p=1, frequency_penalty=0, presence_penalty=0, context=DEFAULT_CONTEXT):
   debug("Attempting to read full message history \n")
 
   # Convert messages to the format expected by the OpenAI API
-  ai_messages = convert_discord_to_context(messages, context)
+  ai_messages, image_api = convert_discord_to_context(messages, context)
 
-   # Print the messages to the console
+
+  # Print the messages to the console
   for message in ai_messages:
     print(message)
 
-  response = openai.ChatCompletion.create(
-    model=MODEL,
+  response = openai.chat.completions.create(
+    model=MODEL_IMAGE if image_api else MODEL,
     messages=ai_messages,
     temperature=temperature,
     max_tokens=max_tokens,
@@ -162,5 +167,5 @@ def ask_openai_with_history(messages,temperature=1, max_tokens=256, top_p=1, fre
     )
   
   # Extract the 'content' from the response
-  gpt_response_content = response['choices'][0]['message']['content']
+  gpt_response_content = response.choices[0].message.content
   return gpt_response_content

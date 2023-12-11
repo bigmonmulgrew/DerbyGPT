@@ -3,7 +3,10 @@
 HISTORY_COUNT = 20
 HISTORY_COUNT_SOS = 20
 
-MODEL = "gpt-4-vision-preview"
+MODEL = "gpt-4-vision-preview"          #Forcing this model for now during testing but coudl later allow different moel with image preocessing since it is limited in response length
+MODEL_IMAGE = "gpt-4-vision-preview"
+
+MAX_TOKENS = 4096 
 
 BASIC_CONTEXT = """You are a Discord user who is a member of a community at the University of Derby, your name on discord is DerbyGPT and you are talking in general chat.
 You are studying a degree in computer science which includes programming. 
