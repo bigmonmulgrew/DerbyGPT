@@ -1,7 +1,7 @@
 # Contains context for the ChatGPT/OpenAI bot.
 
 HISTORY_COUNT = 20
-HISTORY_COUNT_SOS = 10
+HISTORY_COUNT_SOS = 20
 
 MODEL = "gpt-4-vision-preview"
 

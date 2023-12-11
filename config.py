@@ -19,7 +19,7 @@ OPENAI_TOKEN = OT
 #Timing calculations to check the bots response time
 # Initial response delay in seconds (e.g., 0.5 to 5 minutes)
 MIN_RESPONSE_DELAY = 1 * 60  # X
-MAX_RESPONSE_DELAY = 15 * 60  # Y
+MAX_RESPONSE_DELAY = 5 * 60  # Y
 
 # Min and max will trend towards these when discord is inactive
 # Maximum delay cap (e.g., 30 min to 6 hours)
