@@ -147,27 +147,60 @@ def update_delay(change, chat_delay):
     debug("Updating delay:" + str(new_chat_delay))
     return new_chat_delay
 
-async def respond_to_channel(c,history_count = HISTORY_COUNT, context_string = DEFAULT_CONTEXT):
+async def respond_to_channel(c, history_count=HISTORY_COUNT, context_string=DEFAULT_CONTEXT):
     global last_general_message_time
 
     # Ensure the channel is a text channel where message history is available
     channel = bot.get_channel(c)
     if isinstance(channel, discord.TextChannel):
-        # Use the history() method to retrieve messages
         messages = [message async for message in channel.history(limit=history_count)]
-        if (messages[0].author.id != BOT_USER_ID):
+        if messages and (messages[0].author.id != BOT_USER_ID):
             last_general_message_time = datetime.utcnow()
             messages.reverse()
-            
+
             # Set typing indicator
             async with channel.typing():
-                openai_response = ask_openai_with_history(messages, context = context_string)
-            
-            #Send the response
-            await channel.send(openai_response)
+                openai_response = ask_openai_with_history(messages, context=context_string)
+
+            # Check if the response is too long and split if necessary
+            if len(openai_response) > 2000:
+                # Split the response at newline characters near the 2000 character mark
+                responses = split_response(openai_response)
+                for response_part in responses:
+                    async with channel.typing():
+                        await asyncio.sleep(10)
+                    await channel.send(response_part)
+                    # Wait and show typing indicator between messages
+                    
+                    
+                    
+            else:
+                await channel.send(openai_response)
+
             # % chance to update the status
-            if random.random() < STATUS_UPDATE_CHANCE:  # random.random() generates a float between 0.0 to 1.0
+            if random.random() < STATUS_UPDATE_CHANCE:
                 await set_status(bot)
+
+def split_response(response, limit=2000, delimiter='\n'):
+    """
+    Splits a long string into parts, each with a maximum length of 'limit'.
+    Tries to split at 'delimiter' to avoid breaking words.
+    """
+    parts = []
+    while response:
+        if len(response) <= limit:
+            parts.append(response)
+            break
+        else:
+            # Find nearest delimiter to the limit
+            split_index = response.rfind(delimiter, 0, limit)
+            if split_index == -1:  # No delimiter found, hard split at the limit
+                split_index = limit
+
+            parts.append(response[:split_index])
+            response = response[split_index:].lstrip(delimiter)  # Remove leading delimiter from next part
+
+    return parts
 
 async def process_channels():
     for channel,context_data in channel_list.items():
