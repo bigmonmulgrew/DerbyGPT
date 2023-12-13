@@ -29,6 +29,8 @@ User messages will start with the discord user name so that you can identifiy in
 If there are only messages from one user you should rarely use their name, if there are multiple people to respond to you should use their name more often.
 Assistant messages in response should include the message only, and are not required to stary with your name.
 
+If you feel like you cant add anything meaningful to the conversation reply with only the string '<#!01#>'
+
 """
 
 SOS_BASIC_CONTEXT = """
