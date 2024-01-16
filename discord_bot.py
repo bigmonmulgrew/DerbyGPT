@@ -2,6 +2,7 @@ import asyncio
 import random
 import discord
 import os
+from channel_config import ChannelConfig
 
 from discord.ext import commands
 #splitting imports from config into groups for for readability
@@ -28,6 +29,13 @@ channel_list = {
   CHAT_CHANNEL: DEFAULT_CONTEXT  # General Chat usually
 }
 
+# Initial loading of the configuration
+ChannelConfig.load_config('watched_channels.json')
+
+# Example of updating a configuration
+#watched_channels[123456789] = ChannelConfig(123456789, 1, 30, 60, 15, 30)
+#ChannelConfig.save_config('watched_channels.json', watched_channels)
+
 # Define the intents
 intents = discord.Intents.default()
 intents.messages = True  # If you need to handle messages
@@ -39,6 +47,7 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 @bot.event
 async def on_ready():
     debug(f'We have logged in as {bot.user}')
+
     # Start the response loop
     bot.loop.create_task(respond_to_general_chat())     #Creat the loop that monitors general chat.
     bot.loop.create_task(respond_to_sos_chat())         #Creat the loop that monitors sos chat.
@@ -82,21 +91,62 @@ async def on_message(message):
         #openai_response = ask_openai(message)
         #await message.channel.send(openai_response)
 
-#Discord Bot command for when !hello is used
+# Privacy Command
 @bot.command()
-async def hello(ctx):
-    await ctx.send('Hello World!')
+async def privacy(ctx):
+    msg = "Privacy policy and data handling practices.\n"
+    msg += "This bot is experimental and as such the below may be inaccurate, although best effort is made to ensure accuracy.\n"
+    msg += "Data may be captured in an anonymised form, or you may opt in to remain identified.\n"
+    msg += "Data captured is stored ina github repository here: <https://github.com/bigmonmulgrew/DerbyGPT>\n"
+    msg += "This bot uses OpenAI to generate responses and Discord, their own policies will also apply.\n"
+    msg += "Discord: <https://discord.com/privacy>\n"
+    msg += "OpenAI: <https://openai.com/enterprise-privacy>\n"
+    msg += "A key point from the OpenAI privacy policy, after March 1st 2023 data from the APi isn't used to train the model, its also retained for 30 days for abuse monitoring."
+    await ctx.send(msg)
 
-#discord Bot command for when !pin is used
 @bot.command()
-async def ping(ctx):
-    await ctx.send('Pong')
-    
+async def general(ctx):
+    # Add or update the channel configuration
+    channel_id = ctx.channel.id
+    if channel_id not in ChannelConfig.watched_channels:
+        ChannelConfig.watched_channels[channel_id] = ChannelConfig(channel_id, 0, 30, 60, 15, 30)
+        ChannelConfig.save_config('watched_channels.json')
+        await ctx.send(f"Channel {ctx.channel} is now marked as a general channel and being watched.")
+    else:
+        await ctx.send(f"Channel {ctx.channel} is already being watched. To update config use the config command.")
+
+# Academic Command
+@bot.command()
+async def academic(ctx):
+     # Add or update the channel configuration
+    channel_id = ctx.channel.id
+    if channel_id not in ChannelConfig.watched_channels:
+        ChannelConfig.watched_channels[channel_id] = ChannelConfig(channel_id, 1, 30, 60, 15, 30)
+        ChannelConfig.save_config('watched_channels.json')
+        await ctx.send(f"Channel {ctx.channel} is now marked as a academic help channel and being watched.")
+    else:
+        await ctx.send(f"Channel {ctx.channel} is already being watched. To update config use the config command.")
+
+@bot.command()
+async def unwatch(ctx):
+    channel_id = ctx.channel.id
+    if channel_id in ChannelConfig.watched_channels:
+        ChannelConfig.remove_channel(channel_id)
+        await ctx.send(f"Channel {ctx.channel} has been unwatched.")
+    else:
+        await ctx.send("This channel is not being watched.")
+
+# Config Command
+@bot.command()
+async def config(ctx):
+    # Check if channel is monitored and display configuration
+    # Modify configuration if necessary
+    await ctx.send(f"Not implemented: Configuration for {ctx.channel}.")
+   
 #discord Bot command for testing new code
-@bot.command()
-async def testing(ctx):
-    
-    await process_channels()
+#@bot.command()
+#async def testing(ctx):
+#    await process_channels()
 
 def run_bot():    
     #Run the bot
@@ -254,7 +304,6 @@ async def respond_to_sos_chat():
             sos_chat_delay = update_delay(sos_chat_delay[0], sos_chat_delay)
 
         await respond_to_channel(SOS_CHANNEL, history_count = HISTORY_COUNT_SOS, context_string = SOS_CONTEXT)
-
 
 async def tagged_me(message):
     # Reduces the chat delay when theb bot is tagged
