@@ -94,6 +94,10 @@ async def on_message(message):
 # Privacy Command
 @bot.command()
 async def privacy(ctx):
+    # Check if the user is allowed to use the command
+    if not await command_allowed(ctx, access_level=0):
+        return
+    
     msg = "Privacy policy and data handling practices.\n"
     msg += "This bot is experimental and as such the below may be inaccurate, although best effort is made to ensure accuracy.\n"
     msg += "Data may be captured in an anonymised form, or you may opt in to remain identified.\n"
@@ -106,29 +110,42 @@ async def privacy(ctx):
 
 @bot.command()
 async def general(ctx):
+    # Check if the user is allowed to use the command
+    if not await command_allowed(ctx, access_level=1):
+        return
+    
     # Add or update the channel configuration
-    channel_id = ctx.channel.id
-    if channel_id not in ChannelConfig.watched_channels:
-        ChannelConfig.watched_channels[channel_id] = ChannelConfig(channel_id, 0, 30, 60, 15, 30)
-        ChannelConfig.save_config('watched_channels.json')
-        await ctx.send(f"Channel {ctx.channel} is now marked as a general channel and being watched.")
-    else:
-        await ctx.send(f"Channel {ctx.channel} is already being watched. To update config use the config command.")
+    msg = f"Channel {ctx.channel} is now marked as a general channel and being watched."
+    await add_channel_watch(ctx, msg)
 
 # Academic Command
 @bot.command()
 async def academic(ctx):
-     # Add or update the channel configuration
-    channel_id = ctx.channel.id
-    if channel_id not in ChannelConfig.watched_channels:
-        ChannelConfig.watched_channels[channel_id] = ChannelConfig(channel_id, 1, 30, 60, 15, 30)
-        ChannelConfig.save_config('watched_channels.json')
-        await ctx.send(f"Channel {ctx.channel} is now marked as a academic help channel and being watched.")
-    else:
-        await ctx.send(f"Channel {ctx.channel} is already being watched. To update config use the config command.")
+    # Check if the user is allowed to use the command
+    if not await command_allowed(ctx, access_level=1):
+        return
+    
+    # Add or update the channel configuration
+    msg = f"Channel {ctx.channel} is now marked as a academic help channel and being watched."
+    await add_channel_watch(ctx, msg, context_id = 1)
+
+@bot.command()
+async def list_channels(ctx):
+    # Check if the user is allowed to use the command
+    if not await command_allowed(ctx, access_level=1):
+        return
+    
+    #List channels the bot watches
+    response = ChannelConfig.list_channels(bot)
+    await ctx.send(response)
 
 @bot.command()
 async def unwatch(ctx):
+    # Check if the user is allowed to use the command
+    if not await command_allowed(ctx, access_level=1):
+        return
+    
+    #Remove a watched channel
     channel_id = ctx.channel.id
     if channel_id in ChannelConfig.watched_channels:
         ChannelConfig.remove_channel(channel_id)
@@ -139,6 +156,10 @@ async def unwatch(ctx):
 # Config Command
 @bot.command()
 async def config(ctx):
+    # Check if the user is allowed to use the command
+    if not await command_allowed(ctx, access_level=1):
+        return
+    
     # Check if channel is monitored and display configuration
     # Modify configuration if necessary
     await ctx.send(f"Not implemented: Configuration for {ctx.channel}.")
@@ -196,6 +217,36 @@ def update_delay(change, chat_delay):
     new_chat_delay = (part_delay, iterations)
     debug("Updating delay:" + str(new_chat_delay))
     return new_chat_delay
+
+async def command_allowed(ctx, access_level = 1):
+    """
+    Check if a user should have access to a command.
+    access_level = 0, no special access required, return true.
+    access_level = 1, default behaviour, must be server owner.
+    access_level = 2, not implemented, must havbe assigned mod role.
+    """
+    if access_level == 0:
+        return True
+    if access_level == 1:
+        test = ctx.guild is not None and ctx.author == ctx.guild.owner 
+        if not test:
+            await ctx.send("Sorry, you don't have permission to use this command.")
+        return test
+        
+    # Catch all for incorrect usage
+    debug(f"Incorrect usage of command_allowed with access level: {access_level}")
+    return False
+
+
+async def add_channel_watch(ctx, msg, context_id = 0, min_time_1 = 10, max_time_1 = 30, min_time_2 = 300, max_time_2 = 600):
+     # Add or update the channel configuration
+    channel_id = ctx.channel.id
+    if channel_id not in ChannelConfig.watched_channels:
+        ChannelConfig.watched_channels[channel_id] = ChannelConfig(channel_id, context_id, min_time_1, max_time_1, min_time_2, max_time_2)
+        ChannelConfig.save_config('watched_channels.json')
+        await ctx.send(msg)
+    else:
+        await ctx.send(f"Channel {ctx.channel} is already being watched. To update config use the config command.")
 
 async def respond_to_channel(c, history_count=HISTORY_COUNT, context_string=DEFAULT_CONTEXT):
     global last_general_message_time
