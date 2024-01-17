@@ -10,10 +10,11 @@ from config import DISCORD_TOKEN as TOKEN, MY_USER_ID, MY_GUILD_ID, BOT_USER_ID
 from config import CHAT_CHANNEL, SOS_CHANNEL, DEBUG_CHANNEL
 from config import MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY, ATENTTION_FACTOR
 from config import STATUS_LIST, STATUS_UPDATE_CHANCE
-from contexts import HISTORY_COUNT, DEFAULT_CONTEXT, HISTORY_COUNT_SOS, SOS_CONTEXT
+from contexts import HISTORY_COUNT, DEFAULT_CONTEXT, HISTORY_COUNT_SOS, ACADEMIC_CONTEXT
 from openai_interface import ask_openai, ask_openai_with_history
 from utils import debug
 from datetime import datetime, timedelta
+from contexts import context_manager as CONTEXT
 
 # Last message time
 last_general_message_time = datetime.utcnow()# - timedelta(minutes=30)
@@ -26,7 +27,7 @@ sos_chat_delay = (300, 3) # define a sos channel delay, we set this later, this 
 #List of channels to check for messages
 #These are checked on the delayed loop rather than real time.
 channel_list = {
-  CHAT_CHANNEL: DEFAULT_CONTEXT  # General Chat usually
+  CHAT_CHANNEL: CONTEXT(0)  # General Chat usually
 }
 
 # Initial loading of the configuration
@@ -237,7 +238,6 @@ async def command_allowed(ctx, access_level = 1):
     debug(f"Incorrect usage of command_allowed with access level: {access_level}")
     return False
 
-
 async def add_channel_watch(ctx, msg, context_id = 0, min_time_1 = 10, max_time_1 = 30, min_time_2 = 300, max_time_2 = 600):
      # Add or update the channel configuration
     channel_id = ctx.channel.id
@@ -248,7 +248,7 @@ async def add_channel_watch(ctx, msg, context_id = 0, min_time_1 = 10, max_time_
     else:
         await ctx.send(f"Channel {ctx.channel} is already being watched. To update config use the config command.")
 
-async def respond_to_channel(c, history_count=HISTORY_COUNT, context_string=DEFAULT_CONTEXT):
+async def respond_to_channel(c, history_count=HISTORY_COUNT, context_string=CONTEXT(0)):
     global last_general_message_time
 
     # Ensure the channel is a text channel where message history is available
@@ -354,7 +354,7 @@ async def respond_to_sos_chat():
             await asyncio.sleep(sos_chat_delay[0])
             sos_chat_delay = update_delay(sos_chat_delay[0], sos_chat_delay)
 
-        await respond_to_channel(SOS_CHANNEL, history_count = HISTORY_COUNT_SOS, context_string = SOS_CONTEXT)
+        await respond_to_channel(SOS_CHANNEL, history_count = HISTORY_COUNT_SOS, context_string = CONTEXT(1))
 
 async def tagged_me(message):
     # Reduces the chat delay when theb bot is tagged
@@ -395,5 +395,5 @@ async def set_status(bot):
     await bot.change_presence(activity=activity)
 
 async def debug_test():
-    await respond_to_channel(DEBUG_CHANNEL, history_count = 4, context_string = DEFAULT_CONTEXT)
+    await respond_to_channel(DEBUG_CHANNEL, history_count = 4, context_string = CONTEXT(0))
     
