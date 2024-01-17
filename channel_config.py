@@ -40,3 +40,18 @@ class ChannelConfig:
         if channel_id in cls.watched_channels:
             del cls.watched_channels[channel_id]
             cls.save_config('watched_channels.json')
+
+    @classmethod
+    def list_channels(cls, bot):
+        if cls.watched_channels:
+            response = "Currently watched channels:\n"
+            for channel_id, config in cls.watched_channels.items():
+                channel = bot.get_channel(channel_id)
+                channel_name = channel.name if channel else f"Unknown Channel (ID: {channel_id})"
+                response += (f"- {channel_name} (ID: {channel_id}) "
+                             f"| Context: {config.context_id} "
+                             f"| Min Delay: {config.min_delay} - {config.min_delay2} "
+                             f"| Max Delay: {config.max_delay} - {config.max_delay2}\n")
+            return response
+        else:
+            return "No channels are currently being watched."

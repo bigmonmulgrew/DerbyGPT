@@ -2,9 +2,9 @@
     "1170789197393703003": {
         "channel_id": 1170789197393703003,
         "context_id": 0,
-        "min_delay": 30,
-        "max_delay": 60,
-        "min_delay2": 15,
-        "max_delay2": 30
+        "min_delay": 10,
+        "max_delay": 30,
+        "min_delay2": 300,
+        "max_delay2": 600
     }
 }
