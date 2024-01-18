@@ -2,21 +2,73 @@
     "1156585341411655710": {
         "1170789197393703003": {
             "channel_id": 1170789197393703003,
-            "context_id": 0,
-            "min_response_time": 30,
+            "context_id": 1,
+            "min_response_time": 10,
             "max_response_time": 60,
             "min_response_time_cap": 300,
             "max_response_time_cap": 600,
             "idle_growth_factor": 1.1,
             "attention_factor": 2
         },
+        "1156585342007251042": {
+            "channel_id": 1156585342007251042,
+            "context_id": 0,
+            "min_response_time": 60,
+            "max_response_time": 300,
+            "min_response_time_cap": 300,
+            "max_response_time_cap": 3600,
+            "idle_growth_factor": 1.1,
+            "attention_factor": 2
+        },
         "1156585342007251044": {
             "channel_id": 1156585342007251044,
             "context_id": 0,
-            "min_response_time": 30,
-            "max_response_time": 60,
+            "min_response_time": 60,
+            "max_response_time": 300,
             "min_response_time_cap": 300,
-            "max_response_time_cap": 600,
+            "max_response_time_cap": 3600,
+            "idle_growth_factor": 1.1,
+            "attention_factor": 2
+        },
+        "1169946506023948319": {
+            "channel_id": 1169946506023948319,
+            "context_id": 1,
+            "min_response_time": 30,
+            "max_response_time": 120,
+            "min_response_time_cap": 300,
+            "max_response_time_cap": 900,
+            "idle_growth_factor": 1.1,
+            "attention_factor": 2
+        }
+    },
+    "1197673972574212186": {
+        "1197674049195749386": {
+            "channel_id": 1197674049195749386,
+            "context_id": 1,
+            "min_response_time": 10,
+            "max_response_time": 30,
+            "min_response_time_cap": 30,
+            "max_response_time_cap": 60,
+            "idle_growth_factor": 1.1,
+            "attention_factor": 2
+        },
+        "1197673973698273302": {
+            "channel_id": 1197673973698273302,
+            "context_id": 0,
+            "min_response_time": 10,
+            "max_response_time": 30,
+            "min_response_time_cap": 60,
+            "max_response_time_cap": 120,
+            "idle_growth_factor": 1.1,
+            "attention_factor": 2
+        },
+        "1197674078803345549": {
+            "channel_id": 1197674078803345549,
+            "context_id": 0,
+            "min_response_time": 10,
+            "max_response_time": 30,
+            "min_response_time_cap": 60,
+            "max_response_time_cap": 120,
             "idle_growth_factor": 1.1,
             "attention_factor": 2
         }
