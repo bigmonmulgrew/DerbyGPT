@@ -50,26 +50,41 @@ class ChannelConfig:
         Calculate the probability to respond based on the elapsed time.
         Linearly scales from 0 to 1 as time moves from min_response_time to max_response_time.
         """
-        min = self.adjusted_min_response_time
-        max = self.adjusted_max_response_time
+        min_time = self.adjusted_min_response_time
+        max_time = self.adjusted_max_response_time
 
         elapsed_time = self.elapsed_time()
-        time_range = max - min
+        time_range = max_time - min_time
 
         # Calculate linear probability
-        pbty = (elapsed_time - min) / time_range
+        debug(f"time range: {time_range}, elapsed time: {elapsed_time}, max: {max_time}, min: {min_time}")
+        linear = max((elapsed_time - min_time) / time_range, 0) if time_range > 0 else 0
+        pbty = linear
            
         # Multiply by a random factor, e.g., between 0.9 and 1.1, using config RESPONSE_RATE_RANDOMNESS
-        pbty *= random.uniform(1 - RRR, 1 + RRR)
+        random_fact = random.uniform(1 - RRR, 1 + RRR)
+        pbty *= random_fact
 
         # Multiply by a global activity scale making response more likely when other channels have a lot of activity
-        pbty *= self.calculate_global_factor()
+        global_fact = self.calculate_global_factor()
+        pbty *= global_fact
 
         # modify the probability based on pings
-        pbty *=  self.ping_factor()
+        ping_fact = self.ping_factor()
+        pbty *=  ping_fact
 
         # Modify the probability based on messages
-        pbty *= self.message_factor()
+        message_fact = self.message_factor()
+        pbty *= message_fact
+        
+        msg  = f"Calculating probability in {self.channel_id}\nResponse probability: {pbty}\n"
+        msg += f"linear: {linear}\n"
+        msg += f"random_fact: {random_fact}\n"
+        msg += f"global_fact: {global_fact}\n"
+        msg += f"ping_fact: {ping_fact}\n"
+        msg += f"message_fact: {message_fact}"
+        
+        debug(msg)
 
         return clamp(pbty, 0, 1)
 
@@ -107,7 +122,6 @@ class ChannelConfig:
         # Logarithmic increase in probability based on messages
         # Add 1 to message counts to handle log(0) and ensure a minimum factor of 1
         return (log_guild + log_channel) / 2
-
 
     def respond_now(self):
         # If last_response is None, use random chance to decide

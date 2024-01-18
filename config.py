@@ -18,7 +18,7 @@ OPENAI_TOKEN = OT
 
 #Timing calculations to check the bots response time
 
-BOT_CHECK_TIME = 60 # Max interval the bot will check the channels at.
+BOT_CHECK_TIME = 10 # Max interval the bot will check the channels at.
 RESPONSE_RATE_RANDOMNESS  = 0.2 # Amount +/- the bots response probability can vary. This is a randomised percentage betweeen +/- the limits
 GLOBAL_RESPONSE_MULTIPLIER = 2 # Amount to multiply probability curve of all channels when there has been a recent global response
 MIN_GLOBAL_MULTIPLIER = 0.1 # Used to clamp the multiplier so it never reaches 0

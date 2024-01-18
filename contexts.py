@@ -1,8 +1,8 @@
 # Contains context for the ChatGPT/OpenAI bot.
 from data_context import csv_data
 
-HISTORY_COUNT = 20
-HISTORY_COUNT_SOS = 20
+HISTORY_COUNT_GENERAL = 20
+HISTORY_COUNT_ACADEMIC = 20
 
 MODEL = "gpt-4-vision-preview"          #Forcing this model for now during testing but coudl later allow different moel with image preocessing since it is limited in response length
 MODEL_IMAGE = "gpt-4-vision-preview"
