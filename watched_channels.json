@@ -1,10 +1,24 @@
 {
-    "1170789197393703003": {
-        "channel_id": 1170789197393703003,
-        "context_id": 0,
-        "min_delay": 10,
-        "max_delay": 30,
-        "min_delay2": 300,
-        "max_delay2": 600
+    "1156585341411655710": {
+        "1170789197393703003": {
+            "channel_id": 1170789197393703003,
+            "context_id": 0,
+            "min_response_time": 30,
+            "max_response_time": 300,
+            "min_response_time_cap": 1800,
+            "max_response_time_cap": 6400,
+            "idle_growth_factor": 1.1,
+            "attention_factor": 2
+        },
+        "1156585342007251044": {
+            "channel_id": 1156585342007251044,
+            "context_id": 0,
+            "min_response_time": 30,
+            "max_response_time": 300,
+            "min_response_time_cap": 1800,
+            "max_response_time_cap": 6400,
+            "idle_growth_factor": 1.1,
+            "attention_factor": 2
+        }
     }
 }

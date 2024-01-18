@@ -8,7 +8,7 @@ from discord.ext import commands
 #splitting imports from config into groups for for readability
 from config import DISCORD_TOKEN as TOKEN, MY_USER_ID, MY_GUILD_ID, BOT_USER_ID
 from config import CHAT_CHANNEL, SOS_CHANNEL, DEBUG_CHANNEL
-from config import MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY, ATENTTION_FACTOR
+from config import MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY, ATENTTION_FACTOR, BOT_CHECK_TIME
 from config import STATUS_LIST, STATUS_UPDATE_CHANCE
 from contexts import HISTORY_COUNT, DEFAULT_CONTEXT, HISTORY_COUNT_SOS, ACADEMIC_CONTEXT
 from openai_interface import ask_openai, ask_openai_with_history
@@ -41,6 +41,7 @@ ChannelConfig.load_config('watched_channels.json')
 intents = discord.Intents.default()
 intents.messages = True  # If you need to handle messages
 intents.message_content = True  # Add this line
+intents.members = True  # Enable members intent
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
@@ -49,12 +50,19 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 async def on_ready():
     debug(f'We have logged in as {bot.user}')
 
+    for guild in bot.guilds:
+        debug(f"Member of - {guild.name} (ID: {guild.id})")
+
     # Start the response loop
     bot.loop.create_task(respond_to_general_chat())     #Creat the loop that monitors general chat.
     bot.loop.create_task(respond_to_sos_chat())         #Creat the loop that monitors sos chat.
-    await set_status(bot)
+
+    # Net testing loop
     for guild in bot.guilds:
-        debug(f"- {guild.name} (ID: {guild.id})")
+        debug(f"Starting task to watch - {guild.name} (ID: {guild.id})")
+        ChannelConfig.guild_tasks[guild.id] = bot.loop.create_task(check_channels(guild.id))
+
+    await set_status(bot)
 
 # Reads discord messages
 @bot.event
@@ -146,10 +154,10 @@ async def unwatch(ctx):
     if not await command_allowed(ctx, access_level=1):
         return
     
-    #Remove a watched channel
+    guild_id = ctx.guild.id
     channel_id = ctx.channel.id
-    if channel_id in ChannelConfig.watched_channels:
-        ChannelConfig.remove_channel(channel_id)
+    if guild_id in ChannelConfig.watched_channels and channel_id in ChannelConfig.watched_channels[guild_id]:
+        ChannelConfig.remove_channel(guild_id, channel_id)
         await ctx.send(f"Channel {ctx.channel} has been unwatched.")
     else:
         await ctx.send("This channel is not being watched.")
@@ -229,7 +237,11 @@ async def command_allowed(ctx, access_level = 1):
     if access_level == 0:
         return True
     if access_level == 1:
+        debug(ctx.guild)
+        debug(ctx.author)
+        debug(ctx.guild.owner)
         test = ctx.guild is not None and ctx.author == ctx.guild.owner 
+        
         if not test:
             await ctx.send("Sorry, you don't have permission to use this command.")
         return test
@@ -238,15 +250,23 @@ async def command_allowed(ctx, access_level = 1):
     debug(f"Incorrect usage of command_allowed with access level: {access_level}")
     return False
 
-async def add_channel_watch(ctx, msg, context_id = 0, min_time_1 = 10, max_time_1 = 30, min_time_2 = 300, max_time_2 = 600):
-     # Add or update the channel configuration
+async def add_channel_watch(ctx, msg, context_id = 0):
+    guild_id = ctx.guild.id
     channel_id = ctx.channel.id
-    if channel_id not in ChannelConfig.watched_channels:
-        ChannelConfig.watched_channels[channel_id] = ChannelConfig(channel_id, context_id, min_time_1, max_time_1, min_time_2, max_time_2)
+
+    # Check if the guild is new
+    if guild_id not in ChannelConfig.watched_channels:
+        ChannelConfig.watched_channels[guild_id] = {}
+        # Start a new task for the new guild
+        ChannelConfig.guild_tasks[guild_id] = bot.loop.create_task(check_channels(guild_id))
+
+    # Add or update the channel configuration
+    if channel_id not in ChannelConfig.watched_channels[guild_id]:
+        ChannelConfig.watched_channels[guild_id][channel_id] = ChannelConfig(guild_id, channel_id, context_id=context_id)
         ChannelConfig.save_config('watched_channels.json')
         await ctx.send(msg)
     else:
-        await ctx.send(f"Channel {ctx.channel} is already being watched. To update config use the config command.")
+        await ctx.send(f"Channel {ctx.channel} is already being watched.")
 
 async def respond_to_channel(c, history_count=HISTORY_COUNT, context_string=CONTEXT(0)):
     global last_general_message_time
@@ -271,10 +291,7 @@ async def respond_to_channel(c, history_count=HISTORY_COUNT, context_string=CONT
                     async with channel.typing():
                         await asyncio.sleep(10)
                     await channel.send(response_part)
-                    # Wait and show typing indicator between messages
-                    
-                    
-                    
+                    # Wait and show typing indicator between messages                    
             else:
                 await channel.send(openai_response)
 
@@ -302,6 +319,26 @@ def split_response(response, limit=2000, delimiter='\n'):
             response = response[split_index:].lstrip(delimiter)  # Remove leading delimiter from next part
 
     return parts
+
+async def check_channels(guild_id):
+    while True:
+        # Wait a random amount of time between checking channels
+        cycle_delay = random.uniform(1, BOT_CHECK_TIME)
+        debug(f"Checking channels in guild {guild_id} after delay: {cycle_delay}")
+        await asyncio.sleep(cycle_delay)
+
+        # Loop through the channels of the specified guild
+        channels = ChannelConfig.watched_channels.get(guild_id, {})
+        for channel_id, channel_config in channels.items():
+            debug(f"Checking channel: {channel_id} in guild: {guild_id}")
+
+            if not channel_config.respond_now():
+                continue
+
+            # Bot decides to send a response
+            channel_config.remove_pings()
+            await respond_to_channel(guild_id, channel_id, context_string=CONTEXT(channel_config.context_id))
+
 
 async def process_channels():
     for channel,context_data in channel_list.items():
@@ -360,11 +397,37 @@ async def tagged_me(message):
     # Reduces the chat delay when theb bot is tagged
     # For example, modifying delay or sending a response
     # Example: print(f"I was tagged in a message by {message.author.display_name}")
+
+    # Retrieve the channel and guild IDs from the message
+    guild_id = message.guild.id
+    channel_id = message.channel.id
+
+    # Check if the channel configuration exists
+    if guild_id in ChannelConfig.watched_channels and channel_id in ChannelConfig.watched_channels[guild_id]:
+        channel_config = ChannelConfig.watched_channels[guild_id][channel_id]
+        channel_config.register_ping()
+
+    # Deprecated code for delay adjustment
+    # ... existing delay adjustment logic ...
+        
     global gen_chat_delay
     gen_chat_delay = update_delay(gen_chat_delay[0], gen_chat_delay)
 
 async def get_attention(message):
     # When users chat it should reduce the delay time of the bot.
+
+    # Retrieve the channel and guild IDs from the message
+    guild_id = message.guild.id
+    channel_id = message.channel.id
+
+    # Check if the channel configuration exists and register the message
+    if guild_id in ChannelConfig.watched_channels and channel_id in ChannelConfig.watched_channels[guild_id]:
+        channel_config = ChannelConfig.watched_channels[guild_id][channel_id]
+        channel_config.register_message()
+
+    # Deprecated code for delay adjustment
+    # ... existing delay adjustment logic ...
+
     global gen_chat_delay
     t = gen_chat_delay[0]    #time
     i = gen_chat_delay[1]    #iterations
