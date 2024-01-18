@@ -10,7 +10,7 @@ from config import DISCORD_TOKEN as TOKEN, MY_USER_ID, MY_GUILD_ID, BOT_USER_ID
 from config import CHAT_CHANNEL, SOS_CHANNEL, DEBUG_CHANNEL
 from config import MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY, ATENTTION_FACTOR, BOT_CHECK_TIME
 from config import STATUS_LIST, STATUS_UPDATE_CHANCE
-from contexts import HISTORY_COUNT, DEFAULT_CONTEXT, HISTORY_COUNT_SOS, ACADEMIC_CONTEXT
+from contexts import HISTORY_COUNT_GENERAL, DEFAULT_CONTEXT, HISTORY_COUNT_ACADEMIC, ACADEMIC_CONTEXT
 from openai_interface import ask_openai, ask_openai_with_history
 from utils import debug
 from datetime import datetime, timedelta
@@ -268,7 +268,7 @@ async def add_channel_watch(ctx, msg, context_id = 0):
     else:
         await ctx.send(f"Channel {ctx.channel} is already being watched.")
 
-async def respond_to_channel(c, history_count=HISTORY_COUNT, context_string=CONTEXT(0)):
+async def respond_to_channel(c, history_count=HISTORY_COUNT_GENERAL, context_string=CONTEXT(0)):
     global last_general_message_time
 
     # Ensure the channel is a text channel where message history is available
@@ -336,9 +336,8 @@ async def check_channels(guild_id):
                 continue
 
             # Bot decides to send a response
-            channel_config.remove_pings()
-            await respond_to_channel(guild_id, channel_id, context_string=CONTEXT(channel_config.context_id))
-
+            history = HISTORY_COUNT_GENERAL if channel_config.context_id == 0 else HISTORY_COUNT_ACADEMIC
+            await respond_to_channel(channel_id, history_count = history ,  context_string=CONTEXT(channel_config.context_id))
 
 async def process_channels():
     for channel,context_data in channel_list.items():
@@ -391,7 +390,7 @@ async def respond_to_sos_chat():
             await asyncio.sleep(sos_chat_delay[0])
             sos_chat_delay = update_delay(sos_chat_delay[0], sos_chat_delay)
 
-        await respond_to_channel(SOS_CHANNEL, history_count = HISTORY_COUNT_SOS, context_string = CONTEXT(1))
+        await respond_to_channel(SOS_CHANNEL, history_count = HISTORY_COUNT_ACADEMIC, context_string = CONTEXT(1))
 
 async def tagged_me(message):
     # Reduces the chat delay when theb bot is tagged
