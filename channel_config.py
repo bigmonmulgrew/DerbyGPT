@@ -57,7 +57,7 @@ class ChannelConfig:
         time_range = max_time - min_time
 
         # Calculate linear probability
-        debug(f"time range: {time_range}, elapsed time: {elapsed_time}, max: {max_time}, min: {min_time}")
+        debug(f"time range: {time_range}, elapsed time: {elapsed_time:.2f}, max: {max_time}, min: {min_time}")
         linear = max((elapsed_time - min_time) / time_range, 0) if time_range > 0 else 0
         pbty = linear
            
@@ -77,12 +77,12 @@ class ChannelConfig:
         message_fact = self.message_factor()
         pbty *= message_fact
         
-        msg  = f"Calculating probability in {self.channel_id}\nResponse probability: {pbty}\n"
-        msg += f"linear: {linear}\n"
-        msg += f"random_fact: {random_fact}\n"
-        msg += f"global_fact: {global_fact}\n"
-        msg += f"ping_fact: {ping_fact}\n"
-        msg += f"message_fact: {message_fact}"
+        msg  = f"Calculating probability in {self.channel_id}\nResponse probability: {pbty:.2f}\n"
+        msg += f"linear: {linear:.2f}\n"
+        msg += f"random_fact: {random_fact:.2f}\n"
+        msg += f"global_fact: {global_fact:.2f}\n"
+        msg += f"ping_fact: {ping_fact:.2f}\n"
+        msg += f"message_fact: {message_fact:.2f}"
         
         debug(msg)
 

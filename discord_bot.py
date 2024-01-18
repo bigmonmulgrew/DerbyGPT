@@ -6,36 +6,17 @@ from channel_config import ChannelConfig
 
 from discord.ext import commands
 #splitting imports from config into groups for for readability
-from config import DISCORD_TOKEN as TOKEN, MY_USER_ID, MY_GUILD_ID, BOT_USER_ID
-from config import CHAT_CHANNEL, SOS_CHANNEL, DEBUG_CHANNEL
-from config import MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY, ATENTTION_FACTOR, BOT_CHECK_TIME
+from config import DISCORD_TOKEN as TOKEN, BOT_USER_ID
+from config import BOT_CHECK_TIME
 from config import STATUS_LIST, STATUS_UPDATE_CHANCE
-from contexts import HISTORY_COUNT_GENERAL, DEFAULT_CONTEXT, HISTORY_COUNT_ACADEMIC, ACADEMIC_CONTEXT
+from contexts import HISTORY_COUNT_GENERAL, HISTORY_COUNT_ACADEMIC
 from openai_interface import ask_openai, ask_openai_with_history
 from utils import debug
-from datetime import datetime, timedelta
+from datetime import datetime
 from contexts import context_manager as CONTEXT
-
-# Last message time
-last_general_message_time = datetime.utcnow()# - timedelta(minutes=30)
-last_sos_message_time = datetime.utcnow()# - timedelta(minutes=30)
-
-# Delay times
-gen_chat_delay = (300, 4) # define a default but we will set this befor efirst use anyway
-sos_chat_delay = (300, 3) # define a sos channel delay, we set this later, this is just a reasonable default/
-
-#List of channels to check for messages
-#These are checked on the delayed loop rather than real time.
-channel_list = {
-  CHAT_CHANNEL: CONTEXT(0)  # General Chat usually
-}
 
 # Initial loading of the configuration
 ChannelConfig.load_config('watched_channels.json')
-
-# Example of updating a configuration
-#watched_channels[123456789] = ChannelConfig(123456789, 1, 30, 60, 15, 30)
-#ChannelConfig.save_config('watched_channels.json', watched_channels)
 
 # Define the intents
 intents = discord.Intents.default()
@@ -53,11 +34,7 @@ async def on_ready():
     for guild in bot.guilds:
         debug(f"Member of - {guild.name} (ID: {guild.id})")
 
-    # Start the response loop
-    bot.loop.create_task(respond_to_general_chat())     #Creat the loop that monitors general chat.
-    bot.loop.create_task(respond_to_sos_chat())         #Creat the loop that monitors sos chat.
-
-    # Net testing loop
+    # Start the response loop, one for each guild
     for guild in bot.guilds:
         debug(f"Starting task to watch - {guild.name} (ID: {guild.id})")
         ChannelConfig.guild_tasks[guild.id] = bot.loop.create_task(check_channels(guild.id))
@@ -81,24 +58,13 @@ async def on_message(message):
         # It's a command, so don't proceed with custom message handling
         return
 
-    # Check if the bot is mentioned in the message
+    # Check if the bot is mentioned in the message to trigger a faster response
     if bot.user in message.mentions:
         debug(f'Someone called me {bot.user}')
         await tagged_me(message)
     
-    # Check if the message is sent in the designated channel
-    if message.channel.id == CHAT_CHANNEL:
-        await get_attention(message)
-
-    # Check if the message is sent in the debug channel
-    if message.channel.id == DEBUG_CHANNEL:
-        await debug_test()
-
-    # Custom processing for non-command messages
-    #if str(message.author.id) == MY_USER_ID:
-        #debug(f"{message.channel}: {message.author.display_name}: {message.content}")
-        #openai_response = ask_openai(message)
-        #await message.channel.send(openai_response)
+    # When a message is sent trigger a faster response
+    await get_attention(message)
 
 # Privacy Command
 @bot.command()
@@ -164,33 +130,84 @@ async def unwatch(ctx):
 
 # Config Command
 @bot.command()
-async def config(ctx):
-    # Check if the user is allowed to use the command
+async def config(ctx, *, args=None):
+    # Ensure the user is allowed to use the command
     if not await command_allowed(ctx, access_level=1):
         return
-    
-    # Check if channel is monitored and display configuration
-    # Modify configuration if necessary
-    await ctx.send(f"Not implemented: Configuration for {ctx.channel}.")
-   
-#discord Bot command for testing new code
-#@bot.command()
-#async def testing(ctx):
-#    await process_channels()
+
+    guild_id = ctx.guild.id
+    channel_id = ctx.channel.id
+
+    # Check if the channel is being watched
+    if guild_id not in ChannelConfig.watched_channels or channel_id not in ChannelConfig.watched_channels[guild_id]:
+        await ctx.send("This channel is not currently being watched so has no configuration.")
+        return
+
+    channel_config = ChannelConfig.watched_channels[guild_id][channel_id]
+
+    # If no arguments are provided, display the current configuration
+    if args is None:
+        await list_config(ctx,channel_config)
+        return
+
+    # Parse arguments and update configuration
+    await parse_command_arguments(ctx, channel_config, args)
+
+    # Save updated configuration
+    ChannelConfig.save_config('watched_channels.json')
+    await ctx.send("Configuration updated.")
+
+async def list_config(ctx,channel_config):
+    config_msg = f"Current configuration for {ctx.channel}:\n"
+    config_msg += "```\n"  # Start of code block
+    config_msg += f"min_response_time:      {channel_config.min_response_time}   # Minimum time before the bot can respond in that channel\n"
+    config_msg += f"max_response_time:      {channel_config.max_response_time}   # Time before response probability (due to time) maxes out\n"
+    config_msg += f"min_response_time_cap:  {channel_config.min_response_time_cap}  # Response times will increase with inactivity, this limits its growth\n"
+    config_msg += f"max_response_time_cap:  {channel_config.max_response_time_cap}  # Response times will increase with inactivity, this limits its growth\n"
+    config_msg += f"idle_growth_factor:     {channel_config.idle_growth_factor}  # The rate at which response times will increase while inactive\n"
+    config_msg += f"attention_factor:       {channel_config.attention_factor}    # Factor to increase response probability based on pings\n"
+    config_msg += "```\n"  # End of code block
+    # ... include other settings ...
+    await ctx.send(config_msg)
+            
+async def parse_command_arguments(ctx, channel_config, args):
+    settings_map = {
+        "min_response_time": "min_response_time",
+        "max_response_time": "max_response_time",
+        "min_response_time_cap": "min_response_time_cap",
+        "max_response_time_cap": "max_response_time_cap",
+        "idle_growth_factor": "idle_growth_factor",
+        "attention_factor": "attention_factor",
+        # ... other mappings ...
+    }
+
+    updated_settings = []
+
+    for arg in args.split():
+        if '=' not in arg:
+            await ctx.send(f"Invalid format for argument '{arg}'. Expected format: key=value")
+            continue
+
+        key, value = arg.split('=', 1)
+        if key in settings_map:
+            try:
+                setattr(channel_config, settings_map[key], int(value))
+                updated_settings.append(f"{key} set to {value}")
+            except ValueError:
+                await ctx.send(f"Invalid value for {key}. Expected an integer.")
+        else:
+            await ctx.send(f"Invalid config key: {key}")
+
+    # Summarize changes made
+    if updated_settings:
+        await ctx.send("Updated settings:\n" + "\n".join(updated_settings))
+    else:
+        await ctx.send("No valid settings were provided to update.")
+
 
 def run_bot():    
     #Run the bot
     bot.run(TOKEN)    
-
-def weighted_delay(min_delay, max_delay, time_since_last_message):
-    ##Currently all this really does is return time since last message, planning to see if the ai spots this in a future code review.
-    # Calculate delay factor based on time since last message
-    delay_factor = time_since_last_message / min_delay
-    # Calculate weighted delay
-    delay = min_delay * delay_factor
-    # Make sure the delay is at least the minimum and at most the maximum
-    delay = max(min_delay, min(delay, max_delay))
-    return delay
 
 def generate_delay_steps(total_delay):
     debug("Generate delay steps, Total delay:" + str(total_delay))
@@ -214,19 +231,6 @@ def generate_delay_steps(total_delay):
 
     return part_delay, iterations
 
-def update_delay(change, chat_delay):
-    part_delay = chat_delay[0]
-    iterations = chat_delay[1]
-
-    if change <= part_delay:
-        iterations -= 1
-    else:
-        iterations -= change // part_delay
-
-    new_chat_delay = (part_delay, iterations)
-    debug("Updating delay:" + str(new_chat_delay))
-    return new_chat_delay
-
 async def command_allowed(ctx, access_level = 1):
     """
     Check if a user should have access to a command.
@@ -237,9 +241,6 @@ async def command_allowed(ctx, access_level = 1):
     if access_level == 0:
         return True
     if access_level == 1:
-        debug(ctx.guild)
-        debug(ctx.author)
-        debug(ctx.guild.owner)
         test = ctx.guild is not None and ctx.author == ctx.guild.owner 
         
         if not test:
@@ -324,7 +325,7 @@ async def check_channels(guild_id):
     while True:
         # Wait a random amount of time between checking channels
         cycle_delay = random.uniform(1, BOT_CHECK_TIME)
-        debug(f"Checking channels in guild {guild_id} after delay: {cycle_delay}")
+        debug(f"Checking channels in guild {guild_id} after delay: {cycle_delay:.2f}")
         await asyncio.sleep(cycle_delay)
 
         # Loop through the channels of the specified guild
@@ -338,59 +339,6 @@ async def check_channels(guild_id):
             # Bot decides to send a response
             history = HISTORY_COUNT_GENERAL if channel_config.context_id == 0 else HISTORY_COUNT_ACADEMIC
             await respond_to_channel(channel_id, history_count = history ,  context_string=CONTEXT(channel_config.context_id))
-
-async def process_channels():
-    for channel,context_data in channel_list.items():
-        await respond_to_channel(channel, context_string=context_data)
-
-async def respond_to_general_chat():
-    global last_general_message_time
-    global gen_chat_delay
-    while True:
-        # Calculate time since last message
-        time_since_last_message = (datetime.utcnow() - last_general_message_time).total_seconds()
-
-        # Determine the current delay based on the time since the last message
-        current_min_delay = weighted_delay(MIN_RESPONSE_DELAY, MAX_MIN_RESPONSE_DELAY, time_since_last_message)
-        current_max_delay = weighted_delay(MAX_RESPONSE_DELAY, MAX_MAX_RESPONSE_DELAY, time_since_last_message)
-
-        # Wait for a random amount of time within the current delay window
-        total_delay = random.uniform(current_min_delay, current_max_delay)
-        
-        gen_chat_delay = generate_delay_steps(total_delay)
-        debug("OpenAI loop delay:" + str(gen_chat_delay))
-        
-        # delay[1] iterations, #delay[0] delay per iteration.
-        while gen_chat_delay[1] > 0:
-            await asyncio.sleep(gen_chat_delay[0])
-            gen_chat_delay = update_delay(gen_chat_delay[0], gen_chat_delay)
-
-        while 0 <= datetime.utcnow().hour < 6:
-            await asyncio.sleep(3600)
-            await set_status(bot)
-
-        await process_channels()
-
-async def respond_to_sos_chat():
-    global last_sos_message_time
-    global sos_chat_delay
-    while True:
-        # Calculate time since last message
-        time_since_last_message = (datetime.utcnow() - last_general_message_time).total_seconds()
-
-        #Use the standard response delay for this because it shouldnt get slower when idle 
-        # Wait for a random amount of time within the current delay window
-        total_delay = random.uniform(MIN_RESPONSE_DELAY, MAX_RESPONSE_DELAY)
-        
-        sos_chat_delay = generate_delay_steps(total_delay)
-        debug("OpenAI loop delay:" + str(sos_chat_delay))
-        
-        # delay[1] iterations, #delay[0] delay per iteration.
-        while sos_chat_delay[1] > 0:
-            await asyncio.sleep(sos_chat_delay[0])
-            sos_chat_delay = update_delay(sos_chat_delay[0], sos_chat_delay)
-
-        await respond_to_channel(SOS_CHANNEL, history_count = HISTORY_COUNT_ACADEMIC, context_string = CONTEXT(1))
 
 async def tagged_me(message):
     # Reduces the chat delay when theb bot is tagged
@@ -406,12 +354,6 @@ async def tagged_me(message):
         channel_config = ChannelConfig.watched_channels[guild_id][channel_id]
         channel_config.register_ping()
 
-    # Deprecated code for delay adjustment
-    # ... existing delay adjustment logic ...
-        
-    global gen_chat_delay
-    gen_chat_delay = update_delay(gen_chat_delay[0], gen_chat_delay)
-
 async def get_attention(message):
     # When users chat it should reduce the delay time of the bot.
 
@@ -423,20 +365,6 @@ async def get_attention(message):
     if guild_id in ChannelConfig.watched_channels and channel_id in ChannelConfig.watched_channels[guild_id]:
         channel_config = ChannelConfig.watched_channels[guild_id][channel_id]
         channel_config.register_message()
-
-    # Deprecated code for delay adjustment
-    # ... existing delay adjustment logic ...
-
-    global gen_chat_delay
-    t = gen_chat_delay[0]    #time
-    i = gen_chat_delay[1]    #iterations
-
-    t -= ATENTTION_FACTOR
-    if t <=0:
-        t = 1
-    
-    gen_chat_delay = (t, i)
-    debug("Getting attenion:" + str(gen_chat_delay))
 
 async def set_status(bot):
     # List of potential statuses
@@ -456,6 +384,4 @@ async def set_status(bot):
     # Set the bot's status
     await bot.change_presence(activity=activity)
 
-async def debug_test():
-    await respond_to_channel(DEBUG_CHANNEL, history_count = 4, context_string = CONTEXT(0))
     
