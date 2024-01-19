@@ -75,12 +75,12 @@ async def privacy(ctx):
     
     msg = "Privacy policy and data handling practices.\n"
     msg += "This bot is experimental and as such the below may be inaccurate, although best effort is made to ensure accuracy.\n"
-    msg += "Data may be captured in an anonymised form, or you may opt in to remain identified.\n"
-    msg += "Data captured is stored ina github repository here: <https://github.com/bigmonmulgrew/DerbyGPT>\n"
+    msg += "Data may be captured in an anonymised form in order to document the bot's usage, or you may opt in to remain identified.\n"
+    msg += "Source code and documented data is stored in a github repository here: <https://github.com/bigmonmulgrew/DerbyGPT>\n"
     msg += "This bot uses OpenAI to generate responses and Discord, their own policies will also apply.\n"
     msg += "Discord: <https://discord.com/privacy>\n"
     msg += "OpenAI: <https://openai.com/enterprise-privacy>\n"
-    msg += "A key point from the OpenAI privacy policy, after March 1st 2023 data from the APi isn't used to train the model, its also retained for 30 days for abuse monitoring."
+    msg += "A key point from the OpenAI privacy policy, after March 1st 2023 data from the API isn't used to train the model, its also retained for 30 days for abuse monitoring."
     await ctx.send(msg)
 
 @bot.command()
