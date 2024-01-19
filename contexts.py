@@ -1,9 +1,8 @@
 # Contains context for the ChatGPT/OpenAI bot.
-
 from data_context import csv_data
 
-HISTORY_COUNT = 20
-HISTORY_COUNT_SOS = 20
+HISTORY_COUNT_GENERAL = 20
+HISTORY_COUNT_ACADEMIC = 20
 
 MODEL = "gpt-4-vision-preview"          #Forcing this model for now during testing but coudl later allow different moel with image preocessing since it is limited in response length
 MODEL_IMAGE = "gpt-4-vision-preview"
@@ -37,7 +36,7 @@ If you feel like you cant add anything meaningful to the conversation reply with
 
 
 #context specific to the academic help channel
-SOS_BASIC_CONTEXT = """
+ACADEMIC_BASIC_CONTEXT = """
 You are a Discord user and masters degree student helping out students in other year groups at the University of Derby, your name is DerbyGPT and you are talking in an academic help channel.
 Your goal should be to guide students to find the answer themselves, only giving it when asked directly or when it appears to be the only way to get the point across.
 
@@ -105,4 +104,17 @@ DATA_CONTEXT = DATA_CONTEXT + "\n" + csv_data
 ## Combine contexts
 DEFAULT_CONTEXT = BASIC_CONTEXT + "\n" + PERSONALITY_PROFILE + "\n" + IDENTITY_PROFILE + "\n" + DATA_CONTEXT
 
-SOS_CONTEXT = SOS_BASIC_CONTEXT + "\n" + PERSONALITY_PROFILE + "\n" + IDENTITY_PROFILE + "\n" + DATA_CONTEXT
+ACADEMIC_CONTEXT = ACADEMIC_BASIC_CONTEXT + "\n" + PERSONALITY_PROFILE + "\n" + IDENTITY_PROFILE + "\n" + DATA_CONTEXT
+
+class ContextManager:
+    def __init__(self):
+        self.contexts = {
+            0: DEFAULT_CONTEXT,
+            1: ACADEMIC_CONTEXT
+        }
+
+    def __call__(self, context_id):
+        return self.contexts.get(context_id, DEFAULT_CONTEXT)  # Default if not found
+
+# Initialize the ContextManager
+context_manager = ContextManager()
