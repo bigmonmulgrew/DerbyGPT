@@ -1,15 +1,5 @@
 {
     "1156585341411655710": {
-        "1170789197393703003": {
-            "channel_id": 1170789197393703003,
-            "context_id": 1,
-            "min_response_time": 10,
-            "max_response_time": 60,
-            "min_response_time_cap": 300,
-            "max_response_time_cap": 600,
-            "idle_growth_factor": 1.1,
-            "attention_factor": 2
-        },
         "1156585342007251042": {
             "channel_id": 1156585342007251042,
             "context_id": 0,
