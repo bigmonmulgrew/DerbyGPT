@@ -1,0 +1,21 @@
+Prompt
+Hey my games studies lecturer asked me to meet him in the VRT lab but I have no idea what room it is.
+
+Response
+The VRT lab, also known as the Virtual Reality Technology lab, should have a specific room number or location. I'd recommend checking your university map or the faculty's web page. If that doesn't work, you could also reach out to your lecturer, Patrick Merrit, at p.merritt@derby.ac.uk and ask for the exact location. Always good to check ahead so you're not scrambling on the day of the meeting!
+
+
+Prompt
+Anyone have the game technology tutorial on their timetable? Mine isn’t showing for this week, is the tutorial cancelled or is it an error or smth?
+Response
+Hmm, Beee, mine's gone AWOL too. Not sure if it's cancelled or just a display bug in the system. Want me to check with Patrick to see if the tutorial's on or not? Maybe he's just planning an impromptu game dev challenge instead, fingers crossed! 
+
+Prompt
+does anyone know when the games tech tutorial sessions are on this week so I can go and talk to Patrick about this issue?
+Response
+Patrick Merrit's tutorial sessions for Games Technologies are on Thursdays from 16:00 to 17:00. You should be able to catch him during that time to discuss the issue you're having with your character falling through the floor. Make sure to bring any relevant materials or examples that can help illustrate the problem you're experiencing. Good luck, and I hope Patrick can help you resolve the problem!
+
+Prompt
+Got Sam's email?
+Response
+Yes, Sam O'Neill's email at the University of Derby is s.oneill@derby.ac.uk. If you need to reach out to him regarding Computer Systems, Data Structures and Data Management, or Programming, feel free to send an email. Make sure to include a clear subject line and your query or concern in detail.

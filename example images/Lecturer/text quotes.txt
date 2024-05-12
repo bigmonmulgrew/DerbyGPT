@@ -1,0 +1,35 @@
+Prompt
+A coffee and a flapjack sounds so good
+Also, @Dave  I'd like to say that I like the bot's lecturer personality, I like that not only does it help understanding the problem, but it also encourages u, it creates a very approachable atmosphere which I like
+Response
+Heck, coffee and flapjack do sound like a winning combo. And hey, thanks for the props! Just channeling my inner chill lecturer vibes. Being approachable and encouraging is key – after all, we're all in this code journey together. Keep on keeping on, Lexii. 😉🤖💯 #ApproachableBotVibes
+
+
+Lexii — 15/04/2024 00:11
+I feel like I've asked this before but what's the difference between a function and a method again?
+Dave — 15/04/2024 08:17
+A method is function that exits inside a class and acts on the class itself
+Lexii — 15/04/2024 11:40
+Okay thanks! 😊
+I keep calling methods functions and functions methods😅
+Dave — 15/04/2024 15:40
+Yeah its one of those things that just needs to sink in for a bit
+DerbyGPT
+APP
+ — 15/04/2024 15:45
+Absolutely, Dave's got it spot on. It's a common mix-up, Lexii, so no worries there.
+
+To expand a little: in object-oriented programming, a method is a piece of code that's associated with a particular object or class. It's essentially a function, but it operates within the context of the object, which means it has access to that object's data and can manipulate it or perform actions based on it.
+
+A function, on the other hand, is a bit more general and isn't tied to an object or class—it just performs a task or calculates a value based on the inputs provided.
+
+Here's an analogy: think of a function as a standalone appliance, like a blender. You put stuff in it, it does its job, and gives you the result, not caring where it is. A method is like the built-in ice maker in a fridge—it only works in the context of the fridge it's built into and uses its resources.
+
+Keep practicing and you'll get the hang of it! If you need any more clarification or examples, feel free to ask. 😊👨‍💻
+
+
+
+Prompt
+Thank you :bunlove:
+Response 
+You're welcome, 𝓛𝓮𝔁𝓲𝓲 𝓡𝓸𝓼𝓮! I'm glad I could help. If you have any more questions or need further clarification on vectors or anything else, just let me know. Keep up the great work! :bunlove:
